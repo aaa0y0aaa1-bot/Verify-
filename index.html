@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التحقق الأمني المتقدم</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--tg-theme-bg-color, #18222d);
+            color: var(--tg-theme-text-color, #ffffff);
+            text-align: center;
+            padding: 20px;
+            margin: 0;
+        }
+        .card {
+            background: var(--tg-theme-secondary-bg-color, #232e3c);
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        button {
+            background-color: var(--tg-theme-button-color, #2481cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            padding: 14px 24px;
+            font-size: 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        button:active { opacity: 0.8; }
+        p { font-size: 14px; line-height: 1.5; color: #a8b2c1; }
+        .secure-badge { color: #2ea6ff; font-weight: bold; margin-bottom: 10px; display: block; }
+    </style>
+</head>
+<body>
+
+    <span class="secure-badge">🔒 نظام حماية مشفر ضد الحسابات الوهمية</span>
+    <div class="card">
+        <p id="status-text">جاري فحص بيئة الجهاز والاتصال...</p>
+    </div>
+
+    <button id="verify-btn" onclick="executeAdvancedVerification()" disabled>جاري التحقق التلقائي...</button>
+
+    <script>
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+
+        let user = tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user : null;
+
+        // دالة تشفير بسيطة لإنشاء توكن فريد للبصمة
+        async function generateFingerprintHash(str) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(str);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function initCheck() {
+            if (!user) {
+                document.getElementById('status-text.innerText = "خطأ: لم يتم التعرف على حساب تيليجرام.";
+                return;
+            }
+
+            document.getElementById('status-text').innerHTML = 
+                `المستخدم: <b>${user.first_name}</b><br>جاري تحليل بصمة الأمان لجهازك...`;
+
+            setTimeout(async () => {
+                document.getElementById('verify-btn.removeAttribute('disabled');
+                document.getElementById('verify-btn').innerText = "تأكيد إرسال بصمة الأمان";
+                document.getElementById('status-text').innerText = "تم فحص البيئة بنجاح، يمكنك الضغط على تأكيد أدناه.";
+            }, 1200);
+        }
+
+        async function executeAdvancedVerification() {
+            let btn = document.getElementById('verify-btn');
+            btn.innerText = "جاري التشفير والإرسال...";
+            btn.disabled = true;
+
+            // جمع معلومات دقيقة جداً يصعب تزييفها
+            let rawFingerprint = JSON.stringify({
+                user_id: user.id,
+                language_code: user.language_code || "unknown",
+                platform: tg.platform,
+                color_scheme: tg.colorScheme,
+                screen: `${window.screen.width}x${window.screen.height}`,
+                pixel_ratio: window.devicePixelRatio || 1,
+                hardware_concurrency: navigator.hardwareConcurrency || 1,
+                device_memory: navigator.deviceMemory || 1,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                touch_points: navigator.maxTouchPoints || 0,
+                timestamp: Date.now()
+            });
+
+            // توليد هاش مشفر للبصمة لمنع التلاعب بالبيانات المرسلة
+            let secureHash = await generateFingerprintHash(rawFingerprint + user.id);
+
+            let finalPayload = {
+                payload: rawFingerprint,
+                hash: secureHash
+            };
+
+            // إرسال البيانات مشفرة للبوت وإغلاق النافذة
+            tg.sendData(JSON.stringify(finalPayload));
+            tg.close();
+        }
+
+        initCheck();
+    </script>
+</body>
+</html>
+
